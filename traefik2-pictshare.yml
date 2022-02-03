@@ -2,7 +2,7 @@ version: "3.7"
 
 ########################### NETWORKS
 networks:
-  t2_proxy:
+  t2_network:
     external: true
 
 services:
@@ -36,10 +36,8 @@ services:
       - --entrypoints.https.http.tls.options=tls-opts@file
       - --entrypoints.https.http.tls.certresolver=dns-cloudflare
       - --entrypoints.https.http.tls.domains[0].main=$DOMAINNAME
-      - --entrypoints.https.http.tls.domains[0].sans=*.$DOMAINNAME
-      - --entrypoints.https.http.tls.domains[1].main=$DOMAINNAME1 # Pulls main cert for second domain
-      - --entrypoints.https.http.tls.domains[1].sans=*.$DOMAINNAME1 # Pulls wildcard cert for second domain      
-      - --providers.docker.network=t2_proxy
+      - --entrypoints.https.http.tls.domains[0].sans=*.$DOMAINNAME 
+      - --providers.docker.network=t2_network
       - --providers.docker.swarmMode=false
       - --providers.file.directory=/rules # Load dynamic configuration from one or more .toml or .yml files in a directory.
       - --providers.file.watch=true # Only works on top level files in the rules folder
@@ -50,7 +48,7 @@ services:
       - --certificatesResolvers.dns-cloudflare.acme.dnsChallenge.resolvers=1.1.1.1:53,1.0.0.1:53
       - --certificatesResolvers.dns-cloudflare.acme.dnsChallenge.delayBeforeCheck=90 # To delay DNS check and reduce LE hitrate
     networks:
-      - t2_proxy
+      - t2_network
     security_opt:
       - no-new-privileges:true
     ports:
@@ -62,7 +60,6 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - $DOCKERDIR/traefik2/acme/acme.json:/acme.json 
       - $DOCKERDIR/traefik2/traefik.log:/traefik.log 
-      - $DOCKERDIR/shared:/shared
     labels:
       - "traefik.enable=true"
       ## HTTP-to-HTTPS Redirect
@@ -76,7 +73,7 @@ services:
       ## Services - API
       - "traefik.http.routers.traefik-rtr.service=api@internal"
       ## Middlewares
-      - "traefik.http.routers.traefik-rtr.middlewares=secure-chain@file"
+      - "traefik.http.routers.traefik-rtr.middlewares=chain-basic-auth@file"
 
   pictshare:
     container_name: pictshare
@@ -84,7 +81,7 @@ services:
     volumes:
       - $DOCKERDIR/pictshare/data/pictshareuploads:/var/www/data
     networks:
-      - t2_proxy
+      - t2_network
     environment:
       PUID: $PUID
       PGID: $PGID
@@ -105,6 +102,6 @@ services:
       - "traefik.http.routers.pics-secure.entrypoints=https"
       - "traefik.http.routers.pics-secure.rule=(Host(`pics.$DOMAINNAME`) && PathPrefix(`/upload`) || PathPrefix(`/api/`))"
       - "traefik.http.routers.pics-secure.priority=20"
-      - "traefik.http.routers.pics-secure.middlewares=secure-chain@file"
+      - "traefik.http.routers.pics-secure.middlewares=chain-basic-auth@file"
       - "traefik.http.routers.pics-secure.service=pics-svc"
       - "traefik.http.services.pics-svc.loadbalancer.server.port=80
