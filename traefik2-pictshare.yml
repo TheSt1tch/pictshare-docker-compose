@@ -82,7 +82,7 @@ services:
     container_name: pictshare
     image: hascheksolutions/pictshare
     volumes:
-      - $DOCKERDIR_APP/pictshare/data/pictshareuploads:/var/www/data
+      - $DOCKERDIR/pictshare/data/pictshareuploads:/var/www/data
     networks:
       - t2_proxy
     environment:
